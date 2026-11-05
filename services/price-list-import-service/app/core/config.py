@@ -1,0 +1,60 @@
+from pathlib import Path
+from typing import Literal
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
+
+class Settings(BaseSettings):
+    DEBUG: bool = Field(default=False)
+    SECRET_KEY: str = Field(default="super_secret_key_12345")
+
+    DB_USER: str = Field(default="DB")
+    DB_PASSWORD: str = Field(default="DB")
+    DB_HOST: str = Field(default="db")
+    DB_PORT: int = Field(default=5432)
+    DB_NAME: str = Field(default="retro_streamer")
+
+    REDIS_HOST: str = Field(default="redis")
+    REDIS_PORT: int = Field(default=6379)
+
+    S3_KEY_ID: str = Field(default="minioadmin")
+    S3_SECRET: str = Field(default="minioadmin")
+    S3_EXTERNAL_URL: str = Field(default="http://minio:9000")
+    S3_INTERNAL_URL: str = Field(default="http://localhost:9000")
+
+    S3_PUBLIC_BUCKET: str = Field(default="retro-streamer-public")
+    S3_PRIVATE_BUCKET: str = Field(default="retro-streamer-private")
+    
+    RABBITMQ_HOST: str = Field(default='localhost')
+    RABBITMQ_PORT: int = Field(default=5672)
+    RABBITMQ_USER: str = Field(default='guest')
+    RABBITMQ_PASSWORD: str = Field(default='guest')
+    
+    EXCHANGE_NAME: str = Field(default='b2b.events')
+    QUEUE_NAME: str = Field(default="notifications.events")
+
+    @property
+    def DATABASE_URL(self) -> str:
+        return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+    @property
+    def REDIS_URL(self) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/1"
+
+    @property
+    def CELERY_BROKER_URL(self) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
+    
+    @property
+    def RABBITMQ_URL(self) -> str:
+        return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/"
+
+    model_config = SettingsConfigDict(
+        env_file=ROOT_DIR / ".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
+
+settings = Settings()

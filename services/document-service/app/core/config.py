@@ -27,19 +27,14 @@ class Settings(BaseSettings):
 
     S3_PUBLIC_BUCKET: str = Field(default="retro-streamer-public")
     S3_PRIVATE_BUCKET: str = Field(default="retro-streamer-private")
-    JWT_SECRET_KEY: str = Field(default="super_secret_key_12345")
-    JWT_ISSUER: str = Field(default="my-api")
-    JWT_AUDIENCE: str = Field(default="my-frontend")
-
-    COOKIE_SECURE: bool = Field(default=False)
-    COOKIE_SAMESITE: Literal["lax"] = Field(default="lax")
-
-    ACCESS_TOKEN_MINUTES: int = 10
-    REFRESH_TOKEN_DAYS: int = 7
-
-    PRODUCT_SERVICE_URL: str = Field(default="http://localhost:8000")
-    RABBITMQ_URL: str = Field(default="amqp://guest:guest@localhost:5672/")
-    ORDERS_EXCHANGE = "orders_exchange"
+    
+    RABBITMQ_HOST: str = Field(default='localhost')
+    RABBITMQ_PORT: int = Field(default=5672)
+    RABBITMQ_USER: str = Field(default='guest')
+    RABBITMQ_PASSWORD: str = Field(default='guest')
+    
+    EXCHANGE_NAME: str = Field(default='b2b.events')
+    QUEUE_NAME: str = Field(default="notifications.events")
 
     @property
     def DATABASE_URL(self) -> str:
@@ -52,6 +47,10 @@ class Settings(BaseSettings):
     @property
     def CELERY_BROKER_URL(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
+    
+    @property
+    def RABBITMQ_URL(self) -> str:
+        return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/"
 
     model_config = SettingsConfigDict(
         env_file=ROOT_DIR / ".env", env_file_encoding="utf-8", extra="ignore"

@@ -1,10 +1,9 @@
 from contextlib import asynccontextmanager
 
 import app.models
-from app.api.v1.endpoints.orders import router as products_router
+
 from app.core.config import settings
 from app.core.exceptions import ApplicationError
-from app.core.rabbitmq import broker
 from app.core.redis_client import redis_async_client
 from fastapi import (
     FastAPI,
@@ -19,11 +18,11 @@ rabbitmq_assets = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await redis_async_client.ping()
-    await broker.connect()
+ 
 
     yield
 
-    await broker.close()
+
     await redis_async_client.close()
 
 
@@ -48,11 +47,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-app.include_router(
-    products_router,
-    prefix="/api/v1",
-)
 
 
 @app.exception_handler(ApplicationError)
