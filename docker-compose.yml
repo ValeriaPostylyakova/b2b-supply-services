@@ -1,129 +1,80 @@
 version: '3.8'
 
 services:
-  document-service:
-    build:
-      context: .
-      dockerfile: services/document-service/Dockerfile
-    environment:  
-      - DB_HOST=document-db
-      - DB_PORT=5432
-      - DB_NAME=${DOC_DB_NAME}
-      - DB_USER=${DOC_DB_USER}
-      - DB_PASSWORD=${DOC_DB_PASSWORD}
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USER=${RABBITMQ_USER}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
-
-    volumes:
-      - ./services/document-service:/app/services/document-service
-      - /app/services/document-service/.venv
-    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    ports:
-      - "8001:8000" 
-
-    depends_on:
-      - document-db
-      - rabbitmq
-
-  price-list-import-service:
-    build:
-      context: .
-      dockerfile: services/price-list-import-service/Dockerfile
-    environment:
-      - DB_HOST=price-list-db
-      - DB_PORT=5432
-      - DB_NAME=${PRICE_DB_NAME}
-      - DB_USER=${PRICE_DB_USER}
-      - DB_PASSWORD=${PRICE_DB_PASSWORD}
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USER=${RABBITMQ_USER}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
-
-    volumes:
-      - ./services/price-list-import-service:/app/services/price-list-import-service
-      - /app/services/price-list-import-service/.venv
-    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    ports:
-      - "8002:8000"
-   
-    depends_on:
-      - price-list-db
-      - rabbitmq
-
   notification-service:
-    build:
-      context: .
-      dockerfile: services/notification-service/Dockerfile
+    build: .  
+    working_dir: /app
     environment:
-      - DB_HOST=notification-db     
-      - DB_PORT=5432                
-      - DB_NAME=${NOTIF_DB_NAME}     
-      - DB_USER=${NOTIF_DB_USER}     
-      - DB_PASSWORD=${NOTIF_DB_PASSWORD}
-      - RABBITMQ_HOST=rabbitmq
+      - PYTHONPATH=/app
+      - DB_HOST=${DB_HOST}     
+      - DB_PORT=${DB_PORT}                
+      - DB_NAME=${DB_NAME}     
+      - DB_USER=${DB_USER} 
+      - DB_PASSWORD=${DB_PASSWORD}
+      - RABBITMQ_HOST=core_rabbitmq_broker
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
-
+      - REDIS_HOST=core_redis_broker
+      - REDIS_PORT=6379
+      - REDIS_DB=1
     volumes:
-      - ./services/notification-service:/app/services/notification-service
-      - /app/services/notification-service/.venv
-    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      - ./app:/app/app
+      - ./migrations:/app/migrations
+      - ./alembic.ini:/app/alembic.ini
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8003:8000"
-  
     depends_on:
       - notification-db
-      - rabbitmq
+    networks:
+      - default
+      - shared_rabbitmq_net
 
-  document-db:
-    image: postgres:16-alpine
+  notification-worker:
+    build: .
+    working_dir: /app
     environment:
-      - POSTGRES_DB=${DOC_DB_NAME}
-      - POSTGRES_USER=${DOC_DB_USER}
-      - POSTGRES_PASSWORD=${DOC_DB_PASSWORD}
-    ports:
-      - "5433:5432"
+      - PYTHONPATH=/app
+      - DB_HOST=${DB_HOST}     
+      - DB_PORT=${DB_PORT}                
+      - DB_NAME=${DB_NAME}     
+      - DB_USER=${DB_USER}     
+      - DB_PASSWORD=${DB_PASSWORD}
+      - RABBITMQ_HOST=core_rabbitmq_broker
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - REDIS_HOST=core_redis_broker
+      - REDIS_PORT=6379
+      - REDIS_DB=1
     volumes:
-      - document_db_data:/var/lib/postgresql/data
-
-  price-list-db:
-    image: postgres:16-alpine
-    environment:
-      - POSTGRES_DB=${PRICE_DB_NAME}
-      - POSTGRES_USER=${PRICE_DB_USER}
-      - POSTGRES_PASSWORD=${PRICE_DB_PASSWORD}
-    ports:
-      - "5434:5432"
-    volumes:
-      - price_list_db_data:/var/lib/postgresql/data
+      - ./app:/app/app
+    command: celery -A app.core.celery_app:celery_app worker --loglevel=info
+    depends_on:
+      - notification-db
+    networks:
+      - default
+      - shared_rabbitmq_net
 
   notification-db:
     image: postgres:16-alpine
+    container_name: notification-db
     environment:
-      - POSTGRES_DB=${NOTIF_DB_NAME}
-      - POSTGRES_USER=${NOTIF_DB_USER}
-      - POSTGRES_PASSWORD=${NOTIF_DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
     ports:
       - "5435:5432" 
     volumes:
       - notification_db_data:/var/lib/postgresql/data
-
-  rabbitmq:
-    image: rabbitmq:4-management
-    ports:
-      - "15673:15672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    networks:
+      - default
 
 volumes:
-  document_db_data:
-  price_list_db_data:
-  notification_db_data: 
-  rabbitmq_data:
+  notification_db_data:
+
+networks:
+  default:
+  shared_rabbitmq_net:
+    external: true

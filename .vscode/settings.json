@@ -1,0 +1,64 @@
+{
+  "git.autoRepositoryDetection": "subFolders",
+  "breadcrumbs.enabled": true,
+  
+  "files.associations": {
+    "**/*.html": "html",
+    "**/requirements{/**,*}.{txt,in}": "pip-requirements",
+    "**/*.lock": "toml",               // Подсветка для uv.lock
+    "pyproject.toml": "toml",          // Подсветка структуры проекта uv
+    ".env*": "properties"
+  },
+
+  // --- НАСТРОЙКИ UV И ВИРТУАЛЬНОГО ОКРУЖЕНИЯ ---
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python", // Явно цепляем venv от uv
+  "python.venvFolders": [
+    ".venv"                            // Подсказываем VS Code искать окружение в корне
+  ],
+  "python.envFile": "${workspaceFolder}/.env",
+  "python.terminal.useEnvFile": true,
+
+  // --- PYTHON И PYLANCE АНАЛИЗ ---
+  "python.languageServer": "Pylance",
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.importFormat": "absolute",
+  "python.analysis.indexing": true,
+  "python.analysis.userFileIndexingLimit": -1,
+  "python.analysis.diagnosticMode": "workspace", 
+  "python.analysis.typeCheckingMode": "basic", // Базовая проверка типов для FastAPI/Pydantic
+  "python.analysis.autoSearchPaths": true,
+  "python.analysis.completeFunctionParens": true,
+  
+  // Добавляем путь к виртуальному окружению в пути поиска модулей Pylance
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}",
+    "${workspaceFolder}/app",
+    "${workspaceFolder}/.venv/lib/python*/site-packages" // Чтобы Pylance точно видел установленные через uv пакеты
+  ],
+
+  // Глубокое индексирование ключевых библиотек FastAPI стека
+  "python.analysis.packageIndexDepths": [
+    { "name": "fastapi", "depth": 5, "includeAllSymbols": true },
+    { "name": "pydantic", "depth": 5, "includeAllSymbols": true },
+    { "name": "sqlalchemy", "depth": 5, "includeAllSymbols": true },
+    { "name": "pydantic_core", "depth": 3, "includeAllSymbols": true }
+  ],
+
+  "python.analysis.inlayHints.variableTypes": false,
+  "python.analysis.inlayHints.functionReturnTypes": false,
+
+  // --- ЛИНТЕР И ФФОРМАТИРОВАНИЕ (ВСТРОЕННЫЙ В UV RUFF) ---
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",          // Исправление ошибок при сохранении
+      "source.organizeImports.ruff": "explicit"   // Сортировка импортов при сохранении
+    },
+    "editor.quickSuggestions": {
+      "other": true,
+      "comments": false,
+      "strings": true
+    }
+  }
+}
